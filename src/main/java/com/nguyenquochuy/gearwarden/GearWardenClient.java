@@ -1,21 +1,18 @@
 package com.nguyenquochuy.gearwarden;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -42,51 +39,20 @@ public class GearWardenClient implements ClientModInitializer {
             renderToolColumn(ctx, client, player);
         });
 
-        // RUI RO CAO: API BlockOutlineContext / WorldRenderContext chua duoc javap verify
-        // tren Yarn 1.21.10 - neu build loi ngay day, gui log de chinh lai ten method.
-        WorldRenderEvents.BLOCK_OUTLINE.register((context, outlineContext) -> {
-            if (CONFIG == null || !CONFIG.rainbowOutlineEnabled) return true; // true = giu outline vanilla
+        // API da xac minh (ItemTooltipCallback, fabric-api client.item.v1) - hien thong so
+        // do ben khi tro vao item trong inventory, ben canh chu vanilla mac dinh.
+        ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
+            if (CONFIG == null || stack == null || !stack.isDamageable()) return;
 
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.world == null || client.player == null) return true;
+            int max = stack.getMaxDamage();
+            int dmg = stack.getDamage();
+            int remaining = max - dmg;
+            float percent = max == 0 ? 100f : (remaining / (float) max) * 100f;
+            Formatting color = percent > 50 ? Formatting.GREEN : percent > 20 ? Formatting.GOLD : Formatting.RED;
 
-            BlockPos pos = outlineContext.blockPos();
-            VoxelShape shape = client.world.getBlockState(pos)
-                    .getOutlineShape(client.world, pos);
-            if (shape.isEmpty()) return true;
-
-            MatrixStack matrices = context.matrixStack();
-            Vec3d camPos = context.camera().getPos();
-            double offX = pos.getX() - camPos.x;
-            double offY = pos.getY() - camPos.y;
-            double offZ = pos.getZ() - camPos.z;
-
-            float[] rgb = rainbowColor();
-
-            WorldRenderer.drawShapeOutline(
-                    matrices,
-                    context.consumers().getBuffer(net.minecraft.client.render.RenderLayer.getLines()),
-                    shape, offX, offY, offZ,
-                    rgb[0], rgb[1], rgb[2], CONFIG.rainbowOutlineAlpha
-            );
-
-            return false; // huy outline mau den mac dinh
+            String line = String.format("Durability: %d / %d (%.0f%%)", remaining, max, percent);
+            lines.add(Text.literal(line).formatted(color));
         });
-    }
-
-    private float[] rainbowColor() {
-        int cycleMs = Math.max(500, CONFIG.rainbowCycleSpeedMs);
-        long t = System.currentTimeMillis() % cycleMs;
-        float hue = (float) t / (float) cycleMs;
-        return java.awt.Color.HSBtoRGB(hue, 1.0f, 1.0f) == 0 ? new float[]{1f, 1f, 1f} : hsbToFloatRgb(hue);
-    }
-
-    private float[] hsbToFloatRgb(float hue) {
-        int rgbInt = java.awt.Color.HSBtoRGB(hue, 1.0f, 1.0f);
-        float r = ((rgbInt >> 16) & 0xFF) / 255f;
-        float g = ((rgbInt >> 8) & 0xFF) / 255f;
-        float b = (rgbInt & 0xFF) / 255f;
-        return new float[]{r, g, b};
     }
 
     private void renderArmorColumn(DrawContext ctx, MinecraftClient client, PlayerEntity player) {
