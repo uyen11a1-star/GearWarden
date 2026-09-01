@@ -14,13 +14,21 @@ public class GearWardenConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("gearwarden.json");
 
-    public String armorSide = "left";      // "left" or "right"
+    public String armorSide = "left";
     public String toolSide = "right";
     public int warnThresholdPercent = 10;
     public boolean soundEnabled = true;
     public boolean showPercent = true;
     public int offsetX = 4;
     public int offsetY = 4;
+
+    // Vien tay khi cam item (an tay, chi hien item)
+    public boolean hideHandWhenHolding = false;
+
+    // Overlay cau vong khi nhin vao block
+    public boolean rainbowOutlineEnabled = false;
+    public int rainbowCycleSpeedMs = 3000; // thoi gian (ms) de xoay het 1 vong mau
+    public float rainbowOutlineAlpha = 1.0f;
 
     public static GearWardenConfig load() {
         if (Files.exists(PATH)) {
