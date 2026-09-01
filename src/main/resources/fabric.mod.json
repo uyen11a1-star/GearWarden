@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "gearwarden",
+  "version": "${version}",
+  "name": "GearWarden",
+  "description": "Client-side armor & tool durability HUD with break warnings",
+  "authors": ["nguyenquochuy"],
+  "license": "MIT",
+  "icon": "assets/gearwarden/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.nguyenquochuy.gearwarden.GearWardenClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "1.21.10",
+    "fabric-api": "*"
+  }
+}
