@@ -63,7 +63,7 @@ public class GearWardenClient implements ClientModInitializer {
         int x = left
                 ? screenW / 2 - hotbarHalfWidth - ICON_SIZE - 8 + CONFIG.offsetX
                 : screenW / 2 + hotbarHalfWidth + 8 + CONFIG.offsetX;
-        int baseY = screenH - 22;
+        int baseY = screenH - 22 + CONFIG.offsetY;
 
         EquipmentSlot[] slots = {
                 EquipmentSlot.FEET, EquipmentSlot.LEGS,
@@ -91,7 +91,7 @@ public class GearWardenClient implements ClientModInitializer {
         int x = right
                 ? screenW / 2 + hotbarHalfWidth + 8 + CONFIG.offsetX
                 : screenW / 2 - hotbarHalfWidth - ICON_SIZE - 8 + CONFIG.offsetX;
-        int y = screenH - 22;
+        int y = screenH - 22 + CONFIG.offsetY;
 
         drawIconWithBar(ctx, client, main, x, y);
     }
