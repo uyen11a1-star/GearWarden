@@ -10,89 +10,93 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
 
 public class GearWardenClient implements ClientModInitializer {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger("gearwarden");
     public static GearWardenConfig CONFIG;
     private final Set<ItemStack> warnedThisSession = new HashSet<>();
-    private int debugTick = 0;
+
+    private static final int ICON_SIZE = 16;
+    private static final int SLOT_GAP = 20;
+    private static final int BAR_HEIGHT = 2;
 
     @Override
     public void onInitializeClient() {
         CONFIG = GearWardenConfig.load();
-        LOGGER.info("[GearWarden] Client initialized, config loaded");
 
         HudRenderCallback.EVENT.register((DrawContext ctx, RenderTickCounter tickCounter) -> {
-            debugTick++;
-            if (debugTick % 100 == 0) {
-                LOGGER.info("[GearWarden] HUD render callback firing, tick={}", debugTick);
-            }
-
             MinecraftClient client = MinecraftClient.getInstance();
             PlayerEntity player = client.player;
-            if (player == null) return;
+            if (player == null || client.options.hudHidden) return;
 
-            // DEBUG: ve o do choe goc tren trai de test callback co chay + ve duoc khong
-            ctx.fill(10, 10, 60, 60, 0xFFFF0000);
-            ctx.drawText(client.textRenderer, Text.literal("GW TEST"), 10, 65, 0xFFFFFFFF, true);
-
-            if (client.options.hudHidden) return;
-            renderArmorHud(ctx, client, player);
-            renderHeldToolDurability(ctx, client, player);
+            renderArmorColumn(ctx, client, player);
+            renderToolColumn(ctx, client, player);
         });
     }
 
-    private void renderArmorHud(DrawContext ctx, MinecraftClient client, PlayerEntity player) {
-        EquipmentSlot[] slots = {
-                EquipmentSlot.HEAD, EquipmentSlot.CHEST,
-                EquipmentSlot.LEGS, EquipmentSlot.FEET
-        };
+    // Cot giap: dat ngay canh o totem/offhand, ben trai hotbar (hoac phai neu config doi)
+    private void renderArmorColumn(DrawContext ctx, MinecraftClient client, PlayerEntity player) {
+        int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
-        int baseX = CONFIG.armorSide.equals("left")
-                ? CONFIG.offsetX
-                : client.getWindow().getScaledWidth() - 70 - CONFIG.offsetX;
-        int y = screenH / 2 - 40;
+        int hotbarHalfWidth = 91; // vanilla hotbar half-width o do phan giai chuan
+        boolean left = CONFIG.armorSide.equals("left");
+        int x = left
+                ? screenW / 2 - hotbarHalfWidth - ICON_SIZE - 8 + CONFIG.offsetX
+                : screenW / 2 + hotbarHalfWidth + 8 + CONFIG.offsetX;
+        int baseY = screenH - 22;
 
+        EquipmentSlot[] slots = {
+                EquipmentSlot.FEET, EquipmentSlot.LEGS,
+                EquipmentSlot.CHEST, EquipmentSlot.HEAD
+        };
+
+        int y = baseY;
         for (EquipmentSlot slot : slots) {
             ItemStack stack = player.getEquippedStack(slot);
-            if (stack.isEmpty() || !stack.isDamageable()) {
-                y += 18;
-                continue;
+            if (!stack.isEmpty() && stack.isDamageable()) {
+                drawIconWithBar(ctx, client, stack, x, y);
+                y -= SLOT_GAP;
             }
-            drawDurabilityLine(ctx, client, stack, baseX, y);
-            y += 18;
         }
     }
 
-    private void renderHeldToolDurability(DrawContext ctx, MinecraftClient client, PlayerEntity player) {
+    // Cot tool cam tay: doi dien voi cot giap
+    private void renderToolColumn(DrawContext ctx, MinecraftClient client, PlayerEntity player) {
         ItemStack main = player.getMainHandStack();
         if (main.isEmpty() || !main.isDamageable()) return;
+
+        int screenW = client.getWindow().getScaledWidth();
         int screenH = client.getWindow().getScaledHeight();
-        int x = CONFIG.toolSide.equals("right")
-                ? client.getWindow().getScaledWidth() - 70 - CONFIG.offsetX
-                : CONFIG.offsetX;
-        int y = screenH / 2 + 30;
-        drawDurabilityLine(ctx, client, main, x, y);
+        int hotbarHalfWidth = 91;
+        boolean right = CONFIG.toolSide.equals("right");
+        int x = right
+                ? screenW / 2 + hotbarHalfWidth + 8 + CONFIG.offsetX
+                : screenW / 2 - hotbarHalfWidth - ICON_SIZE - 8 + CONFIG.offsetX;
+        int y = screenH - 22;
+
+        drawIconWithBar(ctx, client, main, x, y);
     }
 
-    private void drawDurabilityLine(DrawContext ctx, MinecraftClient client, ItemStack stack, int x, int y) {
+    private void drawIconWithBar(DrawContext ctx, MinecraftClient client, ItemStack stack, int x, int y) {
         int max = stack.getMaxDamage();
         int dmg = stack.getDamage();
         int remaining = max - dmg;
         float percent = max == 0 ? 100f : (remaining / (float) max) * 100f;
         int color = percent > 50 ? 0xFF55FF55 : percent > 20 ? 0xFFFFAA00 : 0xFFFF5555;
-        String label = stack.getName().getString();
-        String text = CONFIG.showPercent
-                ? String.format("%s: %.0f%%", label, percent)
-                : label + ": " + remaining + "/" + max;
-        ctx.drawText(client.textRenderer, Text.literal(text), x, y, color, true);
+
+        // Ve icon item (dung API item render chuan)
+        ctx.drawItem(stack, x, y);
+
+        // Ve thanh do ben tuy chinh (rong 13px giong style vanilla, cao 2px) ngay duoi icon
+        int barWidth = 13;
+        int barX = x + 1;
+        int barY = y + ICON_SIZE - 2;
+        ctx.fill(barX, barY, barX + barWidth, barY + BAR_HEIGHT, 0xFF000000); // nen den
+        int filled = Math.round(barWidth * (percent / 100f));
+        ctx.fill(barX, barY, barX + filled, barY + BAR_HEIGHT - 1, color);
 
         if (percent <= CONFIG.warnThresholdPercent) {
             if (CONFIG.soundEnabled && !warnedThisSession.contains(stack)) {
